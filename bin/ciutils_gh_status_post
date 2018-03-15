@@ -1,0 +1,58 @@
+#!/bin/bash
+
+usage() {
+  echo "Usage: $0 [-s state] [-u target_url] [-d description] [-c context] [-h]" 1>&2
+  echo "states:" 1>&2
+  echo " - pending" 1>&2
+  echo " - sucess" 1>&2
+  echo " - error" 1>&2
+  echo " - failure" 1>&2
+  exit 1
+}
+
+main() {
+  POST_URL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/statuses/${CIRCLE_SHA1}
+  curl -u $GH_ACCESS_TOKEN \
+       -X POST \
+       --data "{\"state\":\"${STATE}\", \"target_url\":\"${TARGET_URL}\", \"description\":\"${DESCRIPTION}\", \"context\":\"${CONTEXT}\"}" \
+       $POST_URL
+}
+
+# default parameter
+STATE=pending
+DESCRIPTION="status is pending"
+CONTEXT=ciutils/default
+
+# parse opt
+while getopts s:u:d:c:h OPT
+do
+  case $OPT in
+    s)  STATE=$OPTARG
+        ;;
+    u)  TARGET_URL=$OPTARG
+        ;;
+    d)  DESCRIPTION=$OPTARG
+        ;;
+    c)  CONTEXT=$OPTARG
+        ;;
+    h)  usage
+        ;;
+    \?) usage
+        ;;
+  esac
+done
+
+# check required parameter
+if [ "$TARGET_URL" == "" ]; then
+  echo "parameter -u (target_url) is reqired." 1>&2
+  exit 1
+fi
+
+# check github token
+if [ "$GH_ACCESS_TOKEN" == "" ]; then
+  echo "GH_ACCESS_TOKEN reqired." 1>&2
+  exit 1
+fi
+
+# call main routine
+main

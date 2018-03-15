@@ -1,0 +1,72 @@
+#!/bin/bash
+
+usage() {
+  echo "Usage: $0 [-u target_url] [-e environment] [-h]" 1>&2
+  exit 1
+}
+
+main() {
+  # check deployment already
+  DEPLYMENT_STATUS_URL=`curl -u $GH_ACCESS_TOKEN \
+   https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/deployments | jq -r "map(select( .[\"ref\"] == \"$CIRCLE_BRANCH\"))[0].url"`
+
+  if [ "$DEPLYMENT_STATUS_URL" == "null" ]; then
+    DEPLYMENT_POST_RESP=`curl -u $GH_ACCESS_TOKEN \
+      -X POST \
+      -H "Accept: application/vnd.github.ant-man-preview+json" \
+      --data "{\"ref\": \"$CIRCLE_BRANCH\", \"auto_merge\":false, \"production_environment\":false, \"required_contexts\":[], \"environment\":\"$ENVIRONMENT\"}" \
+      https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/deployments`
+    DEPLYMENT_STATUS_URL=$(echo $DEPLYMENT_POST_RESP | jq -r '.url')
+  fi
+  if [ "$DEPLYMENT_STATUS_URL" != "null" ]; then
+    # update deployment state
+    curl -u $GH_ACCESS_TOKEN \
+         -X POST \
+        -H "Accept: application/vnd.github.ant-man-preview+json" \
+        --data "{\"state\":\"success\", \"target_url\":\"$TARGET_URL\", \"environment_url\": \"$TARGET_URL\"}" \
+        $DEPLYMENT_STATUS_URL/statuses | jq -r '.state'
+  else
+    echo $DEPLYMENT_POST_RESP
+    exit 1
+  fi
+}
+
+# set pr number
+echo 'export CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"' >> $BASH_ENV
+source $BASH_ENV
+
+# default parameter
+ENVIRONMENT=development
+if [ "${CIRCLE_PR_NUMBER}" != "" ]; then
+  ENVIRONMENT=pr-$CIRCLE_PR_NUMBER
+fi
+
+# parse opt
+while getopts u:e:h OPT
+do
+  case $OPT in
+    u)  TARGET_URL=$OPTARG
+        ;;
+    e)  ENVIRONMENT=$OPTARG
+        ;;
+    h)  usage
+        ;;
+    \?) usage
+        ;;
+  esac
+done
+
+# check required parameter
+if [ "$TARGET_URL" == "" ]; then
+  echo "parameter -u (target_url) is reqired." 1>&2
+  exit 1
+fi
+
+# check github token
+if [ "$GH_ACCESS_TOKEN" == "" ]; then
+  echo "GH_ACCESS_TOKEN reqired." 1>&2
+  exit 1
+fi
+
+# call main routine
+main

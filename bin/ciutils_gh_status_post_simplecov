@@ -1,0 +1,53 @@
+#!/bin/bash
+
+usage() {
+  echo "Usage: $0 [-r report_file] [-c context] [-h]" 1>&2
+  exit 1
+}
+
+main() {
+  COVERAGE=$(cat $COVERAGE_FILE | jq ".result.covered_percent")
+  COV_STATE=success
+  COV_MSG="Coverage:  $COVERAGE"
+  if [ "$THRESHOLD" != "" ]; then
+    if [ $(echo $COVERAGE | sed s/\.[0-9,]*$//g) -lt $THRESHOLD ]; then
+      COV_MSG="Coverage: ${COVERAGE}%, is below ${THRESHOLD}%."
+      COV_STATE=failure
+    else
+      COV_MSG="Coverage: ${COVERAGE}%, is over ${THRESHOLD}%."
+    fi
+  fi
+  REPORT_URL=`curl https://circleci.com/api/v1.1/project/github/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/$CIRCLE_BUILD_NUM/artifacts | jq "map(select( .[\"path\"] == \"$REPORT_FILE\"))" | jq -r '.[].url'`
+  $(dirname $0)/ciutils_gh_status_post -s $COV_STATE -u $REPORT_URL -d "$COV_MSG" -c $COV_CONTEXT
+}
+
+# default parameter
+REPORT_FILE=coverage/index.html
+COVERAGE_FILE=coverage/.last_run.json
+COV_CONTEXT=ciutils/simplecov
+
+# parse opt
+while getopts t:r:c:h OPT
+do
+  case $OPT in
+    t)  THRESHOLD=$OPTARG
+        ;;
+    r)  REPORT_FILE=$OPTARG
+        ;;
+    c)  CONTEXT=$OPTARG
+        ;;
+    h)  usage
+        ;;
+    \?) usage
+        ;;
+  esac
+done
+
+# check github token
+if [ "$GH_ACCESS_TOKEN" == "" ]; then
+  echo "GH_ACCESS_TOKEN reqired." 1>&2
+  exit 1
+fi
+
+# call main routine
+main
