@@ -4,4 +4,15 @@ jobs:
     docker:
       - image: debian:stretch
     steps:
+      # setup ci-utils
+      - run:
+          name: install curl
+          command: apt-get update && apt-get install -y curl jq
+      - run:
+          name: install ci-utils
+          command: |
+            mkdir -p $HOME/.ci-utils && curl -L https://github.com/takemikami/ci-utils/archive/first-impl.tar.gz | tar zx -C $HOME/.ci-utils --strip-components 1
+            echo 'export PATH=$PATH:$HOME/.ci-utils/bin' >> $BASH_ENV
+            source $BASH_ENV
+
       - checkout
