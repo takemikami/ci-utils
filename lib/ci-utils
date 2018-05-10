@@ -1,0 +1,45 @@
+# initialize ci environment variables
+
+if [ "$TRAVIS" == "true" ]; then
+  export CIUTL_REPO=$TRAVIS_REPO_SLUG
+  export CIUTL_REPONAME=${TRAVIS_REPO_SLUG#*/}
+  export CIUTL_USERNAME=${TRAVIS_REPO_SLUG%%/*}
+  export CIUTL_SHA1=$TRAVIS_PULL_REQUEST_SHA
+  export CIUTL_PR_NUMBER=$TRAVIS_PULL_REQUEST
+  export CIUTL_BRANCH=$TRAVIS_BRANCH
+
+elif [ "$CIRCLECI" == "true" ]; then
+  echo 'export CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"' >> $BASH_ENV
+  source $BASH_ENV
+
+  export CIUTL_REPO=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+  export CIUTL_REPONAME=$CIRCLE_PROJECT_REPONAME
+  export CIUTL_USERNAME=$CIRCLE_PROJECT_USERNAME
+  export CIUTL_SHA1=$CIRCLE_SHA1
+  export CIUTL_PR_NUMBER=$CIRCLE_PR_NUMBER
+  export CIUTL_BRANCH=$CIRCLE_BRANCH
+
+elif [ "$DRONE" == "true" ]; then
+  export CIUTL_REPO=$DRONE_REPO
+  export CIUTL_REPONAME=$DRONE_REPO_NAME
+  export CIUTL_USERNAME=$DRONE_REPO_OWNER
+  export CIUTL_SHA1=$DRONE_COMMIT
+  export CIUTL_PR_NUMBER=$DRONE_PULL_REQUEST
+  export CIUTL_BRANCH=$DRONE_BRANCH
+  if [ "$GHE_HOSTNAME" == "" -a "$DRONE_NETRC_MACHINE" != "" -a "$DRONE_NETRC_MACHINE" != "github.com" ]; then
+    export GHE_HOSTNAME=$DRONE_NETRC_MACHINE
+  fi
+
+else
+  echo "from ci only (travis or circleci or drone)"
+  exit 1
+
+fi
+
+# export CIUTL_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
+
+# include libraries
+
+LIB_DIR=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
+source $LIB_DIR/ci-utils-github
+source $LIB_DIR/ci-utils-sonarqube

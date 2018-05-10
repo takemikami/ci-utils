@@ -1,9 +1,22 @@
 #!/bin/sh
 
+update_pkgman() {
+  type apk > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    apk update
+    return
+  fi
+  type apt > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    apt update
+    return
+  fi
+}
+
 install_pkg() {
   PKG=$1
   type $PKG > /dev/null
-  if [ $? -eq 1 ]; then
+  if [ $? -ne 0 ]; then
     type apk > /dev/null 2>&1
     if [ $? -eq 0 ]; then
       apk add $PKG
@@ -39,15 +52,12 @@ echo "  branch: $TARGET_BRANCH"
 echo "================================"
 
 # Install prerequisite modules
-type apk > /dev/null 2>&1
-if [ $? -eq 0 ]; then
-  apk update
-fi
+update_pkgman
+install_pkg curl
 install_pkg jq
 
 # Install ci-utils
-rm -rf $HOME/.ci-utils
-mkdir $HOME/.ci-utils
-curl -L https://github.com/takemikami/ci-utils/archive/$TARGET_BRANCH.tar.gz | tar zx -C $HOME/.ci-utils --strip-components 1
+mkdir -p $HOME/.ci-utils
+curl -s -L https://github.com/takemikami/ci-utils/archive/$TARGET_BRANCH.tar.gz | tar zx -C $HOME/.ci-utils --strip-components 1
 
 export PATH=$PATH:$HOME/.ci-utils

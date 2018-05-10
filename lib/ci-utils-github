@@ -1,0 +1,59 @@
+# ci-utils library for github
+#
+# environment variables:
+#  GITHUB_ACCESS_TOKEN: github access token like username:token
+#  GHE_HOSTNAME: hostname of github enterprise
+
+# initialize github api
+if [ "$GHE_HOSTNAME" == "" ]; then
+  export GITHUB_API_URL=https://api.github.com
+else
+  export GITHUB_API_URL=https://$GHE_HOSTNAME/api/v3
+fi
+
+# backward compatibility
+if [ "$GITHUB_ACCESS_TOKEN" == "" ]; then
+  GITHUB_ACCESS_TOKEN=$GH_ACCESS_TOKEN
+fi
+
+# function: post status
+github_post_status() {
+  GH_CONTEXT=$1
+  GH_STATE=$2
+  GH_TARGET_URL=$3
+  GH_DESCRIPTION=$4
+  POST_URL=$GITHUB_API_URL/repos/${CIUTL_REPO}/statuses/${CIUTL_SHA1}
+  curl -s -u $GITHUB_ACCESS_TOKEN \
+       -X POST \
+       --data "{\"state\":\"${GH_STATE}\", \"target_url\":\"${GH_TARGET_URL}\", \"description\":\"${GH_DESCRIPTION}\", \"context\":\"${GH_CONTEXT}\"}" \
+       $POST_URL
+}
+
+# function: create deployment
+github_create_deployment() {
+  GH_ENVIRONMENT=$1
+  GH_IS_PRODUCTION=$2
+  DEPLYMENT_POST_RESP=`curl -s -u $GITHUB_ACCESS_TOKEN \
+    -X POST \
+    -H "Accept: application/vnd.github.ant-man-preview+json" \
+    --data "{\"ref\": \"$CIUTL_SHA1\", \"auto_merge\":false, \"production_environment\":$GH_IS_PRODUCTION, \"required_contexts\":[], \"environment\":\"$GH_ENVIRONMENT\"}" \
+    $GITHUB_API_URL/repos/$CIUTL_REPO/deployments`
+  DEPLYMENT_STATUS_URL=$(echo $DEPLYMENT_POST_RESP | jq -r '.url')
+  if [ "$DEPLYMENT_STATUS_URL" == "null" ]; then
+    echo $DEPLYMENT_POST_RESP
+    exit 1
+  fi
+  echo $DEPLYMENT_STATUS_URL
+}
+
+# function: update deployment status
+github_update_deployment_status() {
+  GH_DEPLYMENT_STATUS_URL=$1
+  GH_STATE=$2
+  GH_TARGET_URL=$3
+  curl -s -u $GITHUB_ACCESS_TOKEN \
+       -X POST \
+      -H "Accept: application/vnd.github.ant-man-preview+json" \
+      --data "{\"state\":\"$GH_STATE\", \"environment_url\": \"$GH_TARGET_URL\"}" \
+      $GH_DEPLYMENT_STATUS_URL/statuses | jq -r '.state'
+}
