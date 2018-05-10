@@ -11,7 +11,7 @@ jobs:
       - run:
           name: install ci-utils
           command: |
-            mkdir -p $HOME/.ci-utils && curl -L https://github.com/takemikami/ci-utils/archive/first-impl.tar.gz | tar zx -C $HOME/.ci-utils --strip-components 1
+            curl -L https://raw.githubusercontent.com/takemikami/ci-utils/installer/install.sh | sh
             echo 'export PATH=$PATH:$HOME/.ci-utils/bin' >> $BASH_ENV
             source $BASH_ENV
 
