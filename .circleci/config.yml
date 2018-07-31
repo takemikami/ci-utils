@@ -7,12 +7,19 @@ jobs:
       # setup ci-utils
       - run:
           name: install curl
-          command: apt-get update && apt-get install -y curl jq
+          command: apt-get update && apt-get install -y curl
       - run:
           name: install ci-utils
           command: |
-            curl -L https://raw.githubusercontent.com/takemikami/ci-utils/installer/install.sh | sh
+            sh <(curl -L https://raw.githubusercontent.com/takemikami/ci-utils/$CIRCLE_BRANCH/install.sh) $CIRCLE_BRANCH
             echo 'export PATH=$PATH:$HOME/.ci-utils/bin' >> $BASH_ENV
             source $BASH_ENV
 
       - checkout
+      - run:
+          name: test status
+          command: ciutils_gh_status_post -s success -u "https://github.com/takemikami/ci-utils" -d "success of ciutils-test" -c "ciutiltest-from-circleci"
+
+      - run:
+          name: test deployment
+          command: ciutils_gh_deployment_post -u "https://github.com/takemikami/ci-utils"

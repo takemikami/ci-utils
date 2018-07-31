@@ -1,0 +1,22 @@
+# ci-utils library for sonarqube
+#
+# environment variables:
+#  SONARQUBE_TOKEN: sonarqube access token like username:token
+#  SONARQUBE_HOST: hostname of sonarqube
+
+# function: get quality gate status
+sonarqube_get_qualitygate_status() {
+  PROJECT_KEY=$1
+  REQUEST_URL="https://$SONARQUBE_HOST/api/qualitygates/project_status?projectKey=$PROJECT_KEY"
+  STATUS=$(curl -u $SONARQUBE_TOKEN -s $REQUEST_URL | jq -r '.projectStatus.status')
+  echo $STATUS
+}
+
+# function: get issue count
+sonarqube_get_count_issues() {
+  PROJECT_KEY=$1
+  SEVERITIES=$2
+  REQUEST_URL="https://$SONARQUBE_HOST/api/issues/search?componentRoots=$PROJECT_KEY&severities=$SEVERITIES&statuses=OPEN,REOPENED"
+  COUNT=$(curl -u $SONARQUBE_TOKEN -s $REQUEST_URL | jq '.issues[].key' | wc -l)
+  echo $COUNT
+}

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# include ci-utils library
+SCRIPT_DIR=$(cd $(dirname $0)/..; pwd)
+source $SCRIPT_DIR/lib/ci-utils
+
+# usage
 usage() {
   echo "Usage: $0 [-s state] [-u target_url] [-d description] [-c context] [-h]" 1>&2
   echo "states:" 1>&2
@@ -10,12 +15,9 @@ usage() {
   exit 1
 }
 
+# main routine
 main() {
-  POST_URL=https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/statuses/${CIRCLE_SHA1}
-  curl -u $GH_ACCESS_TOKEN \
-       -X POST \
-       --data "{\"state\":\"${STATE}\", \"target_url\":\"${TARGET_URL}\", \"description\":\"${DESCRIPTION}\", \"context\":\"${CONTEXT}\"}" \
-       $POST_URL
+  github_post_status "$CONTEXT" "$STATE" "$TARGET_URL" "$DESCRIPTION"
 }
 
 # default parameter
@@ -49,8 +51,8 @@ if [ "$TARGET_URL" == "" ]; then
 fi
 
 # check github token
-if [ "$GH_ACCESS_TOKEN" == "" ]; then
-  echo "GH_ACCESS_TOKEN reqired." 1>&2
+if [ "$GITHUB_ACCESS_TOKEN" == "" ]; then
+  echo "GITHUB_ACCESS_TOKEN reqired." 1>&2
   exit 1
 fi
 
