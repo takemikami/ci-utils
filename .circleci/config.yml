@@ -19,7 +19,3 @@ jobs:
       - run:
           name: test status
           command: ciutils_gh_status_post -s success -u "https://github.com/takemikami/ci-utils" -d "success of ciutils-test" -c "ciutiltest-from-circleci"
-
-      - run:
-          name: test deployment
-          command: ciutils_gh_deployment_post -u "https://github.com/takemikami/ci-utils"
