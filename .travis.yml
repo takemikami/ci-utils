@@ -1,0 +1,6 @@
+language: bash
+
+script:
+  - sh <(curl -L https://raw.githubusercontent.com/takemikami/ci-utils/$TRAVIS_BRANCH/install.sh) $TRAVIS_BRANCH
+  - export PATH=$PATH:$HOME/.ci-utils/bin
+  - ciutils_gh_status_post -s success -u "https://github.com/takemikami/ci-utils" -d "success of ciutils-test" -c "ciutiltest-from-travis"
