@@ -7,6 +7,9 @@ if [ "$TRAVIS" == "true" ]; then
   export CIUTL_SHA1=$TRAVIS_PULL_REQUEST_SHA
   export CIUTL_PR_NUMBER=$TRAVIS_PULL_REQUEST
   export CIUTL_BRANCH=$TRAVIS_BRANCH
+  if [ "${TRAVIS_PULL_REQUEST_BRANCH-UNDEF}" != "UNDEF" ]; then
+    export CIUTL_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH
+  fi
 
 elif [ "$CIRCLECI" == "true" ]; then
   echo 'export CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"' >> $BASH_ENV
@@ -36,10 +39,7 @@ else
 
 fi
 
-# export CIUTL_CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
-
 # include libraries
-
 LIB_DIR=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 source $LIB_DIR/ci-utils-github
 source $LIB_DIR/ci-utils-sonarqube

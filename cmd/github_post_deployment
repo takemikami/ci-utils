@@ -1,0 +1,57 @@
+# usage
+sub_usage() {
+  echo "Usage: $0 [-u target_url] [-e environment] [-s state] [-h]" 1>&2
+  exit 1
+}
+
+# main routine
+sub_main() {
+  # create deployment
+  DEPLYMENT_STATUS_URL=$(github_create_deployment $ENVIRONMENT false)
+
+  # update deployment status
+  if [ "$DEPLYMENT_STATUS_URL" != "null" ]; then
+    github_update_deployment_status $DEPLYMENT_STATUS_URL $STATE $TARGET_URL
+  else
+    exit 1
+  fi
+}
+
+# default parameter
+ENVIRONMENT=development
+if [ "${CIUTL_PR_NUMBER}" != "" ]; then
+  ENVIRONMENT=pr-$CIUTL_PR_NUMBER
+fi
+STATE=success
+
+# parse opt
+while getopts u:e:s:h OPT
+do
+  case $OPT in
+    u)  TARGET_URL=$OPTARG
+        ;;
+    e)  ENVIRONMENT=$OPTARG
+        ;;
+    s)  STATE=$OPTARG
+        ;;
+    h)  sub_usage
+        ;;
+    \?) sub_usage
+        ;;
+  esac
+done
+
+# check required parameter
+if [ "$TARGET_URL" == "" ]; then
+  echo "parameter -u (target_url) is reqired." 1>&2
+  exit 1
+fi
+
+# check environment variable
+if [ "$GITHUB_ACCESS_TOKEN" == "" ]; then
+  echo "GITHUB_ACCESS_TOKEN reqired." 1>&2
+  exit 1
+fi
+
+# call main routine
+sub_main

@@ -20,3 +20,12 @@ sonarqube_get_count_issues() {
   COUNT=$(curl -u $SONARQUBE_TOKEN -s $REQUEST_URL | jq '.issues[].key' | wc -l)
   echo $COUNT
 }
+
+# function: get metrics(coverage etc)
+sonarqube_get_mertic() {
+  PROJECT_KEY=$1
+  METRIC_KEY=$2
+  REQUEST_URL="https://$SONARQUBE_HOST/api/measures/search?projectKeys=$PROJECT_KEY&metricKeys=$METRIC_KEY"
+  METRIC_VALUE=$(curl -u $SONARQUBE_TOKEN -s $REQUEST_URL | jq -r '.measures[0].value')
+  echo $METRIC_VALUE
+}

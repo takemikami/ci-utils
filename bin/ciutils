@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# include ci-utils library
+SCRIPT_DIR=$(cd $(dirname $0)/..; pwd)
+source $SCRIPT_DIR/lib/ci-utils
+
+# usage
+usage() {
+  echo "Usage: $0 [subcommand] [options]" 1>&2
+  echo "subcommand:" 1>&2
+  echo " - github_post_status" 1>&2
+  echo " - github_post_deployment" 1>&2
+  echo " - github_detect_env" 1>&2
+  exit 1
+}
+
+# call sub command
+SUBCOMMAND=$1
+shift
+case $SUBCOMMAND in
+  github_post_status)
+    source $SCRIPT_DIR/cmd/github_post_status
+    ;;
+  githubpost_deployment)
+    source $SCRIPT_DIR/cmd/github_post_deployment
+    ;;
+  github_detect_env)
+    source $SCRIPT_DIR/cmd/github_detect_env
+    ;;
+  *)
+    usage
+    ;;
+esac

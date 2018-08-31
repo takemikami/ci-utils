@@ -1,0 +1,48 @@
+# usage
+sub_usage() {
+  echo "Usage: $0 [-l label prefixes] [-h]" 1>&2
+  exit 1
+}
+
+# main routine
+sub_main() {
+  LABEL_PREFIX_LIST=( `echo $LABEL_PREFIXES | tr -s ',' ' '`)
+  LABELS=$(github_get_issue_labels)
+
+  for l in $LABELS; do
+    for LABEL_PREFIX in "${LABEL_PREFIX_LIST[@]}"; do
+      if [[ "$l" =~ ^$LABEL_PREFIX ]]; then
+        echo $l
+        exit 0
+      fi
+    done
+  done
+}
+
+# default parameter
+LABEL_PREFIXES=env:
+
+# parse opt
+while getopts l:h OPT
+do
+  case $OPT in
+    l)  LABEL_PREFIXES=$OPTARG
+        ;;
+    h)  sub_usage
+        ;;
+    \?) sub_usage
+        ;;
+  esac
+done
+
+# check required parameter
+#   None
+
+# check environment variable
+if [ "$GITHUB_ACCESS_TOKEN" == "" ]; then
+  echo "GITHUB_ACCESS_TOKEN reqired." 1>&2
+  exit 1
+fi
+
+# call main routine
+sub_main
