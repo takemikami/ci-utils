@@ -1,6 +1,8 @@
 language: bash
 
 script:
-  - sh <(curl -L https://raw.githubusercontent.com/takemikami/ci-utils/$TRAVIS_BRANCH/install.sh) $TRAVIS_BRANCH
+  - export CIUTL_BRANCH=$TRAVIS_BRANCH
+  - if [ "$TRAVIS_PULL_REQUEST_BRANCH" != "" ]; then export CIUTL_BRANCH=$TRAVIS_PULL_REQUEST_BRANCH; fi
+  - sh <(curl -L https://raw.githubusercontent.com/takemikami/ci-utils/$CIUTL_BRANCH/install.sh) $CIUTL_BRANCH
   - export PATH=$PATH:$HOME/.ci-utils/bin
-  - ciutils_gh_status_post -s success -u "https://github.com/takemikami/ci-utils" -d "success of ciutils-test" -c "ciutiltest-from-travis"
+  - ciutils github_post_status -s success -u "https://github.com/takemikami/ci-utils" -d "success of ciutils-test" -c "ciutiltest-from-travis"

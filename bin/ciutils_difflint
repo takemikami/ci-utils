@@ -14,12 +14,14 @@ main() {
   diff_list=()
   commit_list=`git --no-pager log --no-merges $BASE_REMOTE/$BASE_BRANCH...HEAD | grep -e '^commit' | sed -e "s/^commit \(.\{8\}\).*/\1/"`
   for f in `git --no-pager diff $BASE_REMOTE/$BASE_BRANCH...HEAD --name-only`; do
-    for c in $commit_list; do
-      diffs=`git --no-pager blame --show-name -s $f | grep $c | sed -e "s/^[^ ]* *\([^ ]*\) *\([0-9]*\)*).*$/\1:\2/"`
-      for ln in $diffs; do
-        diff_list+=( $ln )
+    if [ -e $f ]; then
+      for c in $commit_list; do
+        diffs=`git --no-pager blame --show-name -s $f | grep $c | sed -e "s/^[^ ]* *\([^ ]*\) *\([0-9]*\)*).*$/\1:\2/"`
+        for ln in $diffs; do
+          diff_list+=( $ln )
+        done
       done
-    done
+    fi
   done
 
   err_count=0

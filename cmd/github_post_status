@@ -1,0 +1,53 @@
+# usage
+sub_usage() {
+  echo "Usage: $0 [-s state] [-u target_url] [-d description] [-c context] [-h]" 1>&2
+  echo "states: pending|sucess|error|failure" 1>&2
+  exit 1
+}
+
+# main routine
+sub_main() {
+  github_post_status "$CONTEXT" "$STATE" "$TARGET_URL" "$DESCRIPTION"
+}
+
+# default parameter
+STATE=pending
+DESCRIPTION="status is pending"
+
+# parse opt
+while getopts s:u:d:c:h OPT
+do
+  case $OPT in
+    s)  STATE=$OPTARG
+        ;;
+    u)  TARGET_URL=$OPTARG
+        ;;
+    d)  DESCRIPTION=$OPTARG
+        ;;
+    c)  CONTEXT=$OPTARG
+        ;;
+    h)  sub_usage
+        ;;
+    \?) sub_usage
+        ;;
+  esac
+done
+
+# check required parameter
+if [ "$TARGET_URL" == "" ]; then
+  echo "parameter -u (target_url) is reqired." 1>&2
+  exit 1
+fi
+if [ "$CONTEXT" == "" ]; then
+  echo "parameter -c (context) is reqired." 1>&2
+  exit 1
+fi
+
+# check environment variable
+if [ "$GITHUB_ACCESS_TOKEN" == "" ]; then
+  echo "GITHUB_ACCESS_TOKEN reqired." 1>&2
+  exit 1
+fi
+
+# call main routine
+sub_main
