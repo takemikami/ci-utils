@@ -1,0 +1,152 @@
+# ci-utils library for transform checker results
+#
+# support checker:
+#  Checkstyle
+#  IntelliJ IDEA inspections
+#  Sonarqube Issues
+
+# function: transform checkstyle
+transform_checkstyle() {
+  PROJECT_ROOT=$1
+  REPORT_OUTPUT_DIR=$2
+  PROJECT_ROOT_LENGTH=$((${#PROJECT_ROOT} + 1))
+  REPORT_FILE=$REPORT_OUTPUT_DIR/checkstyle.txt
+
+  mkdir -p $REPORT_OUTPUT_DIR
+  rm -f $REPORT_FILE
+
+  for target_xml in `find $PROJECT_ROOT | grep reports/checkstyle/main.xml`; do
+    file_count=1
+    while :
+    do
+      filename_xml=`echo "cat /checkstyle/file[${file_count}]/@name" | xmllint --shell $target_xml`
+      if [  "${filename_xml}" = "/ > / > " ]; then
+        break
+      fi
+      filename=`echo ${filename_xml} | sed -e "s/^.*name=\"\(.*\)\".*$/\1/"`
+      filename=${filename:$PROJECT_ROOT_LENGTH}
+
+      err_count=1
+      while :
+      do
+        error_xml=`echo "cat /checkstyle/file[${file_count}]/error[$err_count]" | xmllint --shell $target_xml`
+        if [  "${error_xml}" = "/ > / > " ]; then
+          break
+        fi
+        line=`echo ${error_xml} | sed -e "s/^.*line=\"\([^\"]*\)\".*$/\1/"`
+        column=`echo ${error_xml} | sed -e "s/^.*column=\"\([^\"]*\)\".*$/\1/"`
+        severity=`echo ${error_xml} | sed -e "s/^.*severity=\"\([^\"]*\)\".*$/\1/"`
+        message=`echo ${error_xml} | sed -e "s/^.*message=\"\([^\"]*\)\".*$/\1/"`
+        source=`echo ${error_xml} | sed -e "s/^.*source=\"\([^\"]*\)\".*$/\1/"`
+
+        echo "$filename:$line [$severity] $message ($source)" >> $REPORT_FILE
+        err_count=$((err_count + 1))
+      done
+
+      file_count=$((file_count + 1))
+    done
+  done
+}
+
+# function: transform intellij idea inspection results
+transform_intellij_idea_inspection() {
+  PROJECT_ROOT=$1
+  INSPECTION_REPORT_PATH=$2
+  REPORT_OUTPUT_DIR=$3
+  PROJECT_ROOT_LENGTH=$((${#PROJECT_ROOT} + 1))
+  REPORT_FILE=$REPORT_OUTPUT_DIR/intellij_inspection.txt
+
+  mkdir -p $REPORT_OUTPUT_DIR
+  rm -f $REPORT_FILE
+
+  for target_xml in `find $PROJECT_ROOT/$INSPECTION_REPORT_PATH | grep xml | grep -v '/\.'`; do
+    problem_count=1
+    while :
+    do
+      problem_xml=`echo "cat /problems/problem[${problem_count}]" | xmllint --shell $target_xml`
+      if [  "${problem_xml}" = "/ > / > " ]; then
+        break
+      fi
+      filename=`echo ${problem_xml} | sed -e "s/^.*<file>file:\/\/\([^<]*\).*$/\1/"`
+      filename=${filename:$PROJECT_ROOT_LENGTH}
+      line=`echo ${problem_xml} | sed -e "s/^.*<line>\([^<]*\).*$/\1/"`
+      description=`echo ${problem_xml} | sed -e "s/^.*<description>\([^<]*\).*$/\1/"`
+      severity=`echo ${problem_xml} | sed -e "s/^.*severity=\"\([^\"]*\)\".*$/\1/"`
+      source=`echo ${problem_xml} | sed -e "s/^.*<problem_class.*\">\([^<]*\).*$/\1/"`
+
+      echo "$filename:$line [$severity] $description ($source)" >> $REPORT_FILE
+      problem_count=$((problem_count + 1))
+    done
+  done
+}
+
+# function: transform sonarqube issues
+transform_sonarqune_issues() {
+  PROJECT_ROOT=$1
+  PROJECT_KEY=$2
+  MODULE_NAME=$3
+  REPORT_OUTPUT_DIR=$3
+  PROJECT_ROOT_LENGTH=$((${#PROJECT_ROOT} + 1))
+  REPORT_FILE=$REPORT_OUTPUT_DIR/sonarqube-$MODULE_NAME.txt
+
+  mkdir -p $REPORT_OUTPUT_DIR
+  rm -f $REPORT_FILE
+
+  curl -s -u $SONARQUBE_TOKEN "https://$SONARQUBE_HOST/api/issues/search?componentRoots=$PROJECT_KEY&statuses=OPEN,REOPENED&pageSize=-1" \
+   | jq -r ".issues[] | [.component, .line, .severity, .message] | @tsv" \
+   | awk -F"\t" '{print $1":"$2 " ["$3"] "$4}' \
+   | sed "s/^$PROJECT_KEY:/$MODULE_NAME\//" > $REPORT_FILE
+}
+
+# function: filter issues by pull request differences
+filter_issues_by_pullrequest_difference() {
+  PROJECT_ROOT=$1
+  REPORT_OUTPUT_DIR=$2
+  BASE_BRANCH=$2
+  BASE_REMOTE=origin
+
+  GITHUB_HOSTNAME=$GHE_HOSTNAME
+  if [ "$GHE_HOSTNAME" == "" ]; then
+    GITHUB_HOSTNAME=github.com
+  fi
+
+  REVIEW_COMMENT_BODY=""
+
+  # collect commits
+  git fetch $BASE_REMOTE $BASE_BRANCH
+  commit_list=`git --no-pager log --no-merges $BASE_REMOTE/$BASE_BRANCH...HEAD | grep -e '^commit' | sed -e "s/^commit \(.\{8\}\).*/\1/"`
+  filter=""
+  for c in $commit_list; do
+    if [ "$filter" != "" ]; then
+      filter=$filter\\\|
+    fi
+    filter=$filter^$c
+  done
+
+  file_list=`git --no-pager diff $BASE_REMOTE/$BASE_BRANCH...HEAD --name-only`
+  for f in $file_list; do
+    if [ -f $f ]; then
+      err_count=0
+      filename_len=$((${#f} + 1))
+      diffs=`git --no-pager blame --show-name -s $f | grep $filter | sed -e "s/^[^ ]* *\([^ ]*\) *\([0-9]*\)*).*$/\1:\2/"`
+
+      IFS=$'\n'
+      for err in `cat $REPORT_OUTPUT_DIR/*.txt | grep -e "^$f"`; do
+        for m in $diffs; do
+          if [[ ${err} =~ ^$m ]]; then
+            if [ $err_count -eq 0 ]; then
+              REVIEW_COMMENT_BODY="$REVIEW_COMMENT_BODY\r\n[$f](https://$GITHUB_HOSTNAME/$CIUTL_REPO/blob/$CIUTL_SHA1/$f) \r\n"
+            fi
+            msg=${err:$filename_len}
+            LINE_NUM=$(echo $msg | sed 's/^\([0-9]*\) .*$/\1/')
+            MSG_BODY=$(echo $msg | sed 's/^[0-9]* \(.*\)$/\1/')
+            REVIEW_COMMENT_BODY="$REVIEW_COMMENT_BODY\r\n- [$LINE_NUM:](https://$GITHUB_HOSTNAME/$CIUTL_REPO/blob/$CIUTL_SHA1/$f#L$LINE_NUM) $MSG_BODY"
+            err_count=$((err_count+1))
+            break
+          fi
+        done
+      done
+    fi
+  done
+  echo $REVIEW_COMMENT_BODY
+}
